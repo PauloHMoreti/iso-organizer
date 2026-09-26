@@ -16,6 +16,24 @@ def test_classification_fallback_and_linux():
     assert classify_iso("foto.iso").category == "Outros"
 
 
+def test_classification_handles_real_report_name_patterns():
+    assert classify_iso("br_windows_vista_x64_dvd.iso").category == "Windows"
+    assert classify_iso("WIN_7_HOMEPREMIUM.iso").category == "Windows"
+    assert classify_iso("Dell Inspiron Reinstall DVD.iso").subcategory == "Recuperação/Dell"
+    assert classify_iso("DRIVER_CD_DELL_INSPIRON_1545.ISO").category == "Utilitários"
+    assert classify_iso("linuxmint-22.2-cinnamon-64bit.iso").category == "Linux"
+    assert classify_iso("Windows8.1_EnglishInternational.iso").category == "Windows"
+    assert classify_iso("winPreVista.iso").category == "Windows"
+    assert classify_iso("HBCD_PE_x64.iso").category == "Utilitários"
+    assert classify_iso("PDVD81_DX_DELL_INSPIRON_1545.ISO").category == "Utilitários"
+
+
+def test_classification_detects_macos_and_games():
+    assert classify_iso("Mac OS X Snow Leopard 10.6.iso").category == "macOS"
+    assert classify_iso("iLife_11_Retail.iso").category == "macOS"
+    assert classify_iso("Guitar.Hero.3.PC.iso").category == "Jogos"
+
+
 def test_recursive_discovery_is_case_insensitive(tmp_path: Path):
     (tmp_path / "nested").mkdir()
     (tmp_path / "a.ISO").touch()

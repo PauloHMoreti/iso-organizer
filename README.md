@@ -32,10 +32,11 @@ iso-organizer "C:\ISOs" "D:\Organizadas" --report-dir "D:\Relatorios" --format j
 
 As regras analisam somente o nome do arquivo, sem montar a ISO. A primeira correspondência vence:
 
-- **Windows**: `windows`, `msdn`, `microsoft`, `server 20xx`.
+- **Windows**: `windows`, `win7`, `win10`, `win11`, `Windows8.1`, `winPreVista`, `xp`, `vista`, `msdn`, `microsoft`, `server 20xx`. Separadores `_`, `-` e pontos são tratados como espaços, então nomes como `br_windows_vista_x64` funcionam.
 - **Linux**: `linux`, `ubuntu`, `debian`, `fedora`, `mint`, `arch` e outras distribuições.
-- **Utilitários**: `rescue`, `recovery`, `clonezilla`, `gparted`, `winpe`, diagnóstico etc.
-- **Jogos**: `game`, `steam`, `xbox`, `playstation`, `nintendo` etc.
+- **macOS**: `macOS`, `OS X`, `Snow Leopard`, `Boot Camp`, `iLife` e software Apple.
+- **Utilitários**: `rescue`, `recovery`, `clonezilla`, `gparted`, `winpe`, drivers, instaladores, `Visual Studio`, `.NET`, `VMware Tools` e diagnóstico.
+- **Jogos**: `game`, `Steam`, `Xbox`, `PlayStation`, `Nintendo`, `Guitar Hero` e alguns títulos conhecidos.
 - **Outros**: fallback.
 
 Para Windows e Linux, nomes com `recovery`, `recuperação`, `restore` ou `factory reset` recebem subcategoria `Recuperação`; nomes com `oem` recebem `OEM`. Se o fabricante conhecido aparecer no nome, ele é acrescentado: `Windows/Recuperação/Dell`. Assim, uma mídia `Dell OEM Windows.iso` fica em `Windows/OEM/Dell`. Em caso de colisão, o destino recebe `Nome (1).iso`, `Nome (2).iso` etc.

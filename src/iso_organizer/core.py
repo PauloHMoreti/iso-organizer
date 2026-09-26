@@ -6,10 +6,10 @@ import re
 import shutil
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Iterable, Sequence
+from typing import Iterable, Sequence, Union
 
 
-DEFAULT_CATEGORIES = ("Windows", "Linux", "Utilitários", "Jogos", "Outros")
+DEFAULT_CATEGORIES = ("Windows", "Linux", "macOS", "Utilitários", "Jogos", "Outros")
 REPORT_FIELDS = (
     "caminho_original",
     "caminho_novo",
@@ -21,17 +21,42 @@ REPORT_FIELDS = (
 )
 
 _RULES = (
-    ("Windows", re.compile(r"\b(?:windows|win(?:dows)?|msdn|microsoft|server\s*20\d\d)\b", re.I),
-     "nome contém marcador de Windows"),
-    ("Linux", re.compile(r"\b(?:linux|ubuntu|debian|fedora|mint|arch|manjaro|kali|centos|red\s*hat|opensuse)\b", re.I),
-     "nome contém distribuição ou marcador de Linux"),
-    ("Utilitários", re.compile(r"\b(?:rescue|recovery|hiren|clonezilla|gparted|utility|utilities|toolkit|diagnostic|antivirus|winpe|medicat)\b", re.I),
-     "nome contém marcador de ferramenta ou manutenção"),
-    ("Jogos", re.compile(r"\b(?:game|games|jogo|jogos|steam|xbox|playstation|ps[2345]|nintendo)\b", re.I),
-     "nome contém marcador de jogo ou console"),
+    ("macOS", re.compile(
+        r"\b(?:mac\s*os(?:\s*x)?|os\s*x|snow\s*leopard|boot\s*camp|ilife\d*|iboot|"
+        r"office\s*mac|officemac|apple)\b",
+        re.I,
+    ), "nome contém marcador de macOS ou software Apple"),
+    ("Windows", re.compile(
+        r"\b(?:windows?(?:\s*\d(?:\.\d)?)?|win(?:dows)?|win\s*(?:xp|[23456789](?:\.\d)?|10|11)|"
+        r"winpre(?:2k|vista)?|xp|vista|server\s*20\d\d|msdn|microsoft|reinstall|"
+        r"client\s+enterprise|lrmc\w*)\b",
+        re.I,
+    ), "nome contém marcador de Windows, versão ou produto Microsoft"),
+    ("Linux", re.compile(
+        r"\b(?:linux|linuxmint|ubuntu|debian|fedora|mint|arch|manjaro|kali|centos|"
+        r"red\s*hat|opensuse)\b",
+        re.I,
+    ), "nome contém distribuição ou marcador de Linux"),
+    ("Utilitários", re.compile(
+        r"\b(?:rescue|recovery|hiren|clonezilla|gparted|utility|utilities|toolkit|"
+        r"diagnostic|antivirus|winpe|medicat|driver|drivers|resource\s*cd|applications?\s+disc|"
+        r"service\s*pack|servicepack\w*|installer|setup|visual\s*studio|visualstudio|"
+        r"visual\s*foxpro|dot\s*net|ndp\d+|hbcd|vmware\s*tools|pdvd\d*|"
+        r"pdvd[a-z0-9]*|powerdvd|zune|office)\b",
+        re.I,
+    ), "nome contém marcador de ferramenta, driver ou software"),
+    ("Jogos", re.compile(
+        r"\b(?:game|games|jogo|jogos|steam|xbox|playstation|ps[2345]|nintendo|"
+        r"guitar\s*hero|miku|pica\s*pau)\b",
+        re.I,
+    ), "nome contém marcador de jogo ou console"),
 )
-_RECOVERY = re.compile(r"\b(?:recovery|recupera(?:c|ç)[aã]o|restore|factory\s*reset|rescue)\b", re.I)
-_OEM = re.compile(r"\b(?:oem|recovery|restore|factory)\b", re.I)
+_RECOVERY = re.compile(
+    r"\b(?:recovery|recupera(?:c|ç)[aã]o|restore|factory\s*reset|rescue|"
+    r"reinstall|reinstall\s*dvd)\b",
+    re.I,
+)
+_OEM = re.compile(r"\b(?:oem|recovery|restore|factory|reinstall)\b", re.I)
 _VENDORS = (
     "Dell", "HP", "Lenovo", "Acer", "ASUS", "Samsung", "Toshiba", "Microsoft",
     "Apple", "Fujitsu", "Positivo", "Multilaser",
@@ -57,23 +82,29 @@ class ReportEntry:
     motivo: str
 
 
-def classify_iso(path: Path | str) -> Classification:
+def classify_iso(path: Union[Path, str]) -> Classification:
     """Classifica somente pelo nome do arquivo, de forma previsível e extensível."""
+    # ISO names commonly use "_" and "-" as word separators (for example
+    # br_windows_vista_x64), but regex word boundaries treat "_" as a letter.
     name = Path(path).stem
+    normalized_name = re.sub(r"[\W_]+", " ", name, flags=re.UNICODE)
     category = "Outros"
     reason = "nenhuma regra específica correspondeu ao nome"
     for candidate, pattern, rule_reason in _RULES:
-        if pattern.search(name):
+        if pattern.search(normalized_name):
             category, reason = candidate, rule_reason
             break
 
     subcategory = ""
-    if category in {"Windows", "Linux"} and _RECOVERY.search(name):
+    if category in {"Windows", "Linux"} and _RECOVERY.search(normalized_name):
         subcategory = "Recuperação"
-    elif category in {"Windows", "Linux"} and _OEM.search(name):
+    elif category in {"Windows", "Linux"} and _OEM.search(normalized_name):
         subcategory = "OEM"
 
-    vendor = next((vendor for vendor in _VENDORS if re.search(rf"\b{re.escape(vendor)}\b", name, re.I)), "")
+    vendor = next(
+        (vendor for vendor in _VENDORS if re.search(rf"\b{re.escape(vendor)}\b", normalized_name, re.I)),
+        "",
+    )
     if subcategory and vendor:
         subcategory = f"{subcategory}/{vendor}"
 
@@ -83,7 +114,7 @@ def classify_iso(path: Path | str) -> Classification:
     return Classification(category, subcategory, description, reason)
 
 
-def discover_isos(source: Path | str) -> list[Path]:
+def discover_isos(source: Union[Path, str]) -> list[Path]:
     root = Path(source).expanduser().resolve()
     if not root.is_dir():
         raise NotADirectoryError(f"Pasta de origem inexistente: {source}")
@@ -104,8 +135,8 @@ def _unique_path(path: Path, reserved: set[Path]) -> Path:
 
 
 def organize(
-    source: Path | str,
-    destination: Path | str | None = None,
+    source: Union[Path, str],
+    destination: Union[Path, str, None] = None,
     *,
     in_place: bool = False,
     dry_run: bool = False,
@@ -150,7 +181,11 @@ def organize(
     return entries
 
 
-def write_reports(entries: Sequence[ReportEntry], report_dir: Path | str, formats: Iterable[str] = ("csv", "json")) -> list[Path]:
+def write_reports(
+    entries: Sequence[ReportEntry],
+    report_dir: Union[Path, str],
+    formats: Iterable[str] = ("csv", "json"),
+) -> list[Path]:
     target_dir = Path(report_dir).expanduser()
     target_dir.mkdir(parents=True, exist_ok=True)
     data = [asdict(entry) for entry in entries]
