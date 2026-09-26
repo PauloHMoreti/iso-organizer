@@ -70,3 +70,23 @@ def test_reports_csv_and_json(tmp_path: Path):
         assert list(csv.DictReader(handle))[0]["categoria"] == "Windows"
     data = json.loads((tmp_path / "reports" / "iso-organizer-report.json").read_text(encoding="utf-8"))
     assert data[0]["nome"] == "Windows 10.iso"
+
+
+def test_reports_keep_previous_inventory_and_remove_deleted_files(tmp_path: Path):
+    source = tmp_path / "source"
+    destination = tmp_path / "destination"
+    source.mkdir()
+    first = source / "Windows 10.iso"
+    first.touch()
+    write_reports(organize(source, destination), destination)
+
+    second = source / "Ubuntu.iso"
+    second.touch()
+    write_reports(organize(source, destination), destination)
+    report = json.loads((destination / "iso-organizer-report.json").read_text(encoding="utf-8"))
+    assert {item["nome"] for item in report} == {"Windows 10.iso", "Ubuntu.iso"}
+
+    (destination / "Windows" / "Windows 10.iso").unlink()
+    write_reports([], destination)
+    report = json.loads((destination / "iso-organizer-report.json").read_text(encoding="utf-8"))
+    assert [item["nome"] for item in report] == ["Ubuntu.iso"]

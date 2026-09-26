@@ -185,10 +185,23 @@ def write_reports(
     entries: Sequence[ReportEntry],
     report_dir: Union[Path, str],
     formats: Iterable[str] = ("csv", "json"),
+    *,
+    cumulative: bool = True,
 ) -> list[Path]:
     target_dir = Path(report_dir).expanduser()
     target_dir.mkdir(parents=True, exist_ok=True)
-    data = [asdict(entry) for entry in entries]
+    current_data = [asdict(entry) for entry in entries]
+    data = current_data
+    if cumulative:
+        previous_data = _read_previous_report(target_dir)
+        current_paths = {item["caminho_novo"] for item in current_data}
+        inventory = {
+            item["caminho_novo"]: item
+            for item in previous_data
+            if item["caminho_novo"] in current_paths or Path(item["caminho_novo"]).is_file()
+        }
+        inventory.update({item["caminho_novo"]: item for item in current_data})
+        data = sorted(inventory.values(), key=lambda item: item["caminho_novo"].casefold())
     written: list[Path] = []
     selected = {item.lower() for item in formats}
     if "csv" in selected:
@@ -208,3 +221,25 @@ def write_reports(
     if invalid:
         raise ValueError(f"Formato(s) inválido(s): {', '.join(sorted(invalid))}")
     return written
+
+
+def _read_previous_report(report_dir: Path) -> list[dict[str, str]]:
+    """Lê o inventário anterior para manter relatórios incrementais."""
+    json_path = report_dir / "iso-organizer-report.json"
+    csv_path = report_dir / "iso-organizer-report.csv"
+    if json_path.is_file():
+        with json_path.open(encoding="utf-8") as handle:
+            content = json.load(handle)
+        if not isinstance(content, list) or any(
+            not isinstance(item, dict) or any(field not in item for field in REPORT_FIELDS)
+            for item in content
+        ):
+            raise ValueError(f"Relatório JSON inválido: {json_path}")
+        return [{field: str(item[field]) for field in REPORT_FIELDS} for item in content]
+    if csv_path.is_file():
+        with csv_path.open(encoding="utf-8", newline="") as handle:
+            rows = list(csv.DictReader(handle))
+        if any(any(field not in row for field in REPORT_FIELDS) for row in rows):
+            raise ValueError(f"Relatório CSV inválido: {csv_path}")
+        return [{field: str(row[field]) for field in REPORT_FIELDS} for row in rows]
+    return []

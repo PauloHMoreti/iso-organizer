@@ -17,6 +17,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--in-place", action="store_true", help="organiza dentro da própria origem")
     parser.add_argument("--dry-run", action="store_true", help="apenas mostra o plano, sem mover arquivos")
     parser.add_argument("--report-dir", type=Path, help="pasta dos relatórios (padrão: destino ou origem)")
+    parser.add_argument("--fresh-report", action="store_true",
+                        help="substitui o inventário anterior em vez de acumulá-lo")
     parser.add_argument("--format", choices=("csv", "json", "both"), default="both",
                         help="formatos de relatório (padrão: both)")
     return parser
@@ -34,14 +36,15 @@ def main(argv: list[str] | None = None) -> int:
         entries = organize(args.origem, args.destino, in_place=args.in_place, dry_run=args.dry_run)
         report_dir = args.report_dir or (args.origem if args.in_place else args.destino)
         formats = ("csv", "json") if args.format == "both" else (args.format,)
-        reports = write_reports(entries, report_dir, formats)
+        reports = write_reports(entries, report_dir, formats, cumulative=not args.fresh_report)
     except (OSError, ValueError) as error:
         print(f"erro: {error}", file=sys.stderr)
         return 1
     for entry in entries:
         print(f"{entry.caminho_original} -> {entry.caminho_novo}")
     suffix = " (dry-run; nenhum arquivo foi movido)" if args.dry_run else ""
-    print(f"{len(entries)} ISO(s) processada(s){suffix}. Relatórios: {', '.join(map(str, reports))}")
+    inventory_note = " inventariada(s)" if not args.fresh_report else " processada(s)"
+    print(f"{len(entries)} ISO(s){inventory_note}{suffix}. Relatórios: {', '.join(map(str, reports))}")
     return 0
 
 

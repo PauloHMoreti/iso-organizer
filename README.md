@@ -28,6 +28,8 @@ iso-organizer "C:\ISOs" "D:\Organizadas" --report-dir "D:\Relatorios" --format j
 
 `--dry-run` calcula e imprime o plano sem mover nada, mas ainda grava o relatório. Os formatos aceitos são `csv`, `json` e `both` (padrão). Para uso sem instalação, também é possível executar `python -m iso_organizer.cli ...` após definir `PYTHONPATH=src`.
 
+Os relatórios são **inventários cumulativos por padrão**: ao executar novamente, os registros anteriores cujas ISOs ainda existem são preservados e as novas são adicionadas/atualizadas. Se uma ISO for removida do destino, ela deixa de aparecer no próximo relatório. Use `--fresh-report` somente quando quiser substituir o inventário pelo lote atual.
+
 ### Categorias e regras
 
 As regras analisam somente o nome do arquivo, sem montar a ISO. A primeira correspondência vence:
@@ -54,7 +56,7 @@ As regras ficam em `src/iso_organizer/core.py`, na constante `_RULES`, e podem s
 
 ## Relatórios
 
-Cada linha registra caminho original, caminho novo, nome, categoria, subcategoria, descrição leve e motivo/regra usada. O JSON é uma lista de objetos e o CSV usa UTF-8 com cabeçalho.
+Cada linha registra caminho original, caminho novo, nome, categoria, subcategoria, descrição leve e motivo/regra usada. O JSON é uma lista de objetos e o CSV usa UTF-8 com cabeçalho. Isso permite sincronizar os arquivos de relatório como fonte de conhecimento de um agente de IA: execute o organizador após adicionar novas ISOs e publique/substitua os dois reports nas fontes do agente.
 
 ## Testes
 
